@@ -1,0 +1,26 @@
+{
+    "http_jobs": [
+        {
+            "enable": true,
+            "name": "users2",
+            "cron": "*/5 * * * * ?",
+            "request": {
+                "url": "https://reqres.in/api/users/2",
+                "method": "GET"
+            }
+        },
+        {
+            "enable": true,
+            "name": "login",
+            "cron": "*/10 * * * * ?",
+            "request": {
+                "url": "https://reqres.in/api/login",
+                "method": "POST",
+                "body": {
+                    "email": "eve.holt@reqres.in",
+                    "password": "cityslicka"
+                }
+            }
+        }
+    ]
+}
