@@ -1,0 +1,33 @@
+name: Rust
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Add Compilation Target
+        run: |
+          rustup target add aarch64-unknown-linux-musl
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Build for x86_64 Linux
+        run: |
+          cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Build for aarch64 Linux
+        run: |
+          cargo build --release --target aarch64-unknown-linux-musl
