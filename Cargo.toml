@@ -1,6 +1,6 @@
 [package]
 name = "rjob"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Liyan 18525589998@163.com"]
 description = "A Simple Job Scheduler By Rust."
