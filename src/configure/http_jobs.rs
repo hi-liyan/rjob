@@ -1,41 +1,32 @@
 use std::error::Error;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::Value;
-use crate::configure::get_configure;
 use crate::models::http_job::HttpJob;
 use crate::models::http_job_request::HttpJobRequest;
 
-/// Retrieves a list of HTTP jobs from the JSON configuration.
+/// Parses the JSON configuration and retrieves the list of HTTP jobs.
 ///
-/// Returns:
-/// - A vector of `HttpJob` instances if successful.
-/// - An `Err` containing the error message if any error occurs during reading or parsing the JSON configuration.
+/// # Arguments
 ///
-/// # Examples
+/// * `value` - The JSON configuration value.
 ///
-/// ```
-/// use crate::http_job::HttpJob;
+/// # Returns
 ///
-/// match get_http_jobs() {
-///     Ok(http_jobs) => {
-///         for job in http_jobs {
-///             // Process each HTTP job
-///             println!("Name: {}", job.name);
-///             println!("Enabled: {}", job.enable);
-///             println!("Cron: {}", job.cron);
-///             // ...
-///         }
-///     }
-///     Err(err) => {
-///         eprintln!("Error while retrieving HTTP jobs: {}", err);
-///         // Handle the error accordingly
-///     }
-/// }
-/// ```
-pub fn get_http_jobs() -> Result<Vec<HttpJob>, Box<dyn Error>> {
-    let json_configure = get_configure()?;
-
-    let http_jobs_val = json_configure.get("http_jobs")
+/// A `Result` containing a vector of `HttpJob` on success, or an error message on failure.
+///
+/// # Errors
+///
+/// This function can return an error under the following conditions:
+///
+/// * The 'http_jobs' field is missing in the JSON configuration.
+/// * The 'http_jobs' field is not an array in the JSON configuration.
+/// * The 'name' field is missing or not a string for any HTTP job.
+/// * The 'enable' field is missing or not a boolean for any HTTP job.
+/// * The 'cron' field is missing or not a string for any HTTP job.
+/// * Failed to parse the 'request' field for any HTTP job.
+///
+pub fn get_http_jobs(value: Value) -> Result<Vec<HttpJob>, Box<dyn Error>> {
+    let http_jobs_val = value.get("http_jobs")
         .ok_or("The 'http_jobs' field is missing in the JSON configuration.")?;
 
     let http_jobs_val = http_jobs_val.as_array()
@@ -51,16 +42,24 @@ pub fn get_http_jobs() -> Result<Vec<HttpJob>, Box<dyn Error>> {
 
         let enable = it.get("enable")
             .and_then(|e| e.as_bool())
-            .ok_or("The 'enable' field is missing or not a boolean.")?;
+            .unwrap_or(true);
 
         let cron = it.get("cron")
             .and_then(|c| c.as_str())
             .ok_or("The 'cron' field is missing or not a string.")?
             .to_string();
 
+        let timeout = it.get("timeout")
+            .and_then(|t| t.as_u64())
+            .unwrap_or(5000);
+
+        let max_retry = it.get("max_retry")
+            .and_then(|m| m.as_u64())
+            .unwrap_or(3);
+
         let request = get_http_job_request(&it)?;
 
-        let http_job = HttpJob::new(name, enable, cron, request);
+        let http_job = HttpJob::new(name, enable, cron, timeout, max_retry, request);
         http_jobs.push(http_job);
     }
 
@@ -110,7 +109,7 @@ fn get_http_job_request(value: &Value) -> Result<HttpJobRequest, Box<dyn Error>>
 
     let method = request.get("method")
         .and_then(|m| m.as_str())
-        .ok_or("The 'method' field is required and must be a string.")?
+        .unwrap_or("GET")
         .to_string();
 
     let headers: Result<Option<HeaderMap>, Box<dyn Error>> = request.get("headers")

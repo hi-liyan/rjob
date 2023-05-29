@@ -1,10 +1,92 @@
 use std::error::Error;
-use std::fs;
+use std::{fs, process};
 use std::path::Path;
+use std::str::FromStr;
+use chrono_tz::Tz;
+use once_cell::sync::Lazy;
 
 use serde_json::Value;
+use crate::configure::http_jobs::get_http_jobs;
+use crate::models::jobs::Jobs;
 
-pub mod http_jobs;
+mod http_jobs;
+
+/// The lazy-initialized `Jobs` instance.
+///
+/// This static variable holds the lazily initialized `Jobs` instance using the `Lazy` type
+/// from the `once_cell` crate. The `Jobs` instance is initialized by calling the `init_read_jobs`
+/// function. The initialization is performed lazily, meaning that the `init_read_jobs` function
+/// is only called the first time the `JOBS` variable is accessed.
+static JOBS: Lazy<Jobs> = Lazy::new(|| init_read_jobs());
+
+/// Returns a reference to the initialized `Jobs` instance.
+///
+/// This function returns a reference to the lazily initialized `Jobs` instance. The instance is
+/// created and initialized by the `init_read_jobs` function. Subsequent calls to this function
+/// will return a reference to the same `Jobs` instance without re-initializing it.
+///
+/// # Returns
+///
+/// A reference to the initialized `Jobs` instance.
+pub fn get_jobs() -> &'static Jobs {
+    &JOBS
+}
+
+/// Initializes and returns the `Jobs` instance by reading the configuration.
+///
+/// This function reads the configuration, parses the timezone and HTTP jobs,
+/// and returns a fully initialized `Jobs` instance. If any errors occur during
+/// the process, appropriate error messages are printed to stderr and the program
+/// exits with a non-zero status code.
+///
+/// # Returns
+///
+/// The initialized `Jobs` instance.
+///
+/// # Panics
+///
+/// This function can panic under the following conditions:
+///
+/// * Failed to read the configure file.
+/// * Failed to parse the timezone field or the timezone is invalid.
+/// * Failed to parse the HTTP jobs.
+///
+fn init_read_jobs() -> Jobs {
+    let value = get_value().unwrap_or_else(|e| {
+        eprintln!("Failed to read configure file: {}", e);
+        process::exit(1);
+    });
+
+    // Parse timezone
+    let timezone = value
+        .get("timezone")
+        .and_then(|tz| tz.as_str())
+        .unwrap_or_else(|| {
+            println!("No timezone specified. Using UTC as default.");
+            "UTC"
+        });
+    let timezone = Tz::from_str(timezone).unwrap_or_else(|_| {
+        eprintln!("Invalid timezone specified. Using UTC as default.");
+        Tz::UTC
+    });
+
+    let mut job_count = 0;
+
+    // Parse HTTP jobs
+    let http_jobs = get_http_jobs(value)
+        .and_then(|jobs| {
+            job_count += jobs.len();
+            Ok(jobs)
+        })
+        .unwrap_or(vec![]);
+
+    if job_count == 0 {
+        eprintln!("No jobs found in the 'jobs' file.");
+        process::exit(1);
+    }
+
+    Jobs::new(timezone, http_jobs)
+}
 
 /// Retrieves the configuration from a file.
 ///
@@ -26,7 +108,7 @@ pub mod http_jobs;
 /// # Examples
 ///
 /// ```
-/// match get_configure() {
+/// match get_value() {
 ///     Ok(config) => {
 ///         // Use the configuration
 ///         println!("Configuration: {:?}", config);
@@ -36,7 +118,7 @@ pub mod http_jobs;
 ///     },
 /// }
 /// ```
-pub fn get_configure() -> Result<Value, Box<dyn Error>> {
+fn get_value() -> Result<Value, Box<dyn Error>> {
 
     let file_content = get_jobs_file_content()?;
 

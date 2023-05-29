@@ -1,3 +1,4 @@
+timezone: Asia/Tokyo
 http_jobs:
   - enable: true
     name: users2
@@ -5,7 +6,7 @@ http_jobs:
     request:
       url: https://reqres.in/api/users/2
       method: GET
-  - enable: true
+  - enable: false
     name: login
     cron: '*/10 * * * * ?'
     request:

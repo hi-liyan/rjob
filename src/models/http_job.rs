@@ -6,22 +6,27 @@ pub struct HttpJob {
     pub name: String,
     pub enable: bool,
     pub cron: String,
-    pub request: HttpJobRequest
+    pub timeout: u64,
+    pub max_retry: u64,
+    pub request: HttpJobRequest,
 }
 
 impl HttpJob {
-    pub fn new(name: String, enable: bool, cron: String, request: HttpJobRequest) -> Self {
+    pub fn new(name: String, enable: bool, cron: String, timeout: u64, max_retry: u64, request: HttpJobRequest) -> Self {
         HttpJob {
             name,
             enable,
             cron,
-            request
+            timeout,
+            max_retry,
+            request,
         }
     }
 }
 
 impl Display for HttpJob {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "name: {}, enable: {}, cron: {}, request: [{}]", self.name, self.enable, self.cron, self.request)
+        write!(f, "name: {}, enable: {}, cron: {}, timeout: {}, max_retry: {}, request: [{}]",
+               self.name, self.enable, self.cron, self.timeout, self.max_retry, self.request)
     }
 }
