@@ -88,10 +88,13 @@ async fn start_http_job(http_job: &HttpJob) {
     while attempts < max_attempts {
         attempts += 1;
 
-        let request_builder = client.request(method.clone(), &request.url)
-            .header("Content-Type", "application/json")
+        let mut request_builder = client.request(method.clone(), &request.url)
             .headers(request.headers.clone().unwrap_or_default())
             .body(request.body.clone().unwrap_or_default());
+
+        if let Some(_) = request.body {
+            request_builder = request_builder.header("Content-Type", "application/json");
+        }
 
         let resp = match request_builder.send().await {
             Ok(resp) => resp,
